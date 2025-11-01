@@ -1,8 +1,11 @@
-from config import INDEX_NAME
+from elastic_transport import ObjectApiResponse
+from config import INDEX_NAME, INDEX_NAME_N_GRAM, INDEX_NAME_EMBEDDING
 from utils import get_es_client
 from fastapi.responses import HTMLResponse
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sentence_transformers import SentenceTransformer
+import torch
 
 
 app = FastAPI()
@@ -13,6 +16,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = SentenceTransformer("all-MiniLM-L6-v2").to(device)
 
 
 @app.get("/api/v1/regular_search")
@@ -48,7 +54,7 @@ async def search(
         ]
 
     response = es.search(
-        index=INDEX_NAME,
+        index=INDEX_NAME_N_GRAM,
         body={
             "query": query,
             "from": skip,
@@ -66,7 +72,7 @@ async def search(
     }
 
 
-def get_total_hits(response: dict) -> int:
+def get_total_hits(response: ObjectApiResponse) -> int:
     return response["hits"]["total"]["value"]
 
 
@@ -92,7 +98,7 @@ async def get_docs_per_year_count(search_query: str) -> dict:
         }
 
         response = es.search(
-            index=INDEX_NAME,
+            index=INDEX_NAME_N_GRAM,
             body={
                 "query": query,
                 "aggs": {
@@ -112,7 +118,7 @@ async def get_docs_per_year_count(search_query: str) -> dict:
         return HTMLResponse(content=str(e), status_code=500)
 
 
-def extract_docs_per_year(response: dict) -> dict:
+def extract_docs_per_year(response: ObjectApiResponse) -> dict:
     aggregations = response.get("aggregations", {})
     docs_per_year = aggregations.get("docs_per_year", {})
     buckets = docs_per_year.get("buckets", [])

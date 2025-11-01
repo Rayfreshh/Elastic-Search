@@ -1,0 +1,16 @@
+[project]
+name = "elasticsearch-python-tutorial"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "elasticsearch<9.0",
+    "fastapi>=0.120.4",
+    "fastapi-cli>=0.0.14",
+    "python-dotenv>=1.2.1",
+    "ranx>=0.3.21",
+    "requests>=2.32.5",
+    "sentence-transformers>=5.1.2",
+    "tqdm>=4.67.1",
+]
