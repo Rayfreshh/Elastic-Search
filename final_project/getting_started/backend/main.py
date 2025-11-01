@@ -1,5 +1,5 @@
 from elastic_transport import ObjectApiResponse
-from config import INDEX_NAME, INDEX_NAME_N_GRAM, INDEX_NAME_EMBEDDING
+from config import INDEX_NAME_RAW
 from utils import get_es_client
 from fastapi.responses import HTMLResponse
 from fastapi import FastAPI
@@ -54,7 +54,60 @@ async def search(
         ]
 
     response = es.search(
-        index=INDEX_NAME_N_GRAM,
+        index=INDEX_NAME_RAW,
+        body={
+            "query": query,
+            "from": skip,
+            "size": limit,
+        },
+        filter_path=["hits.hits._source", "hits.hits._score", "hits.total"],
+    )
+
+    total_hits = get_total_hits(response)
+    max_pages = calc_max_pages(total_hits, limit)
+
+    return {
+        "hits": response["hits"].get("hits", []),
+        "max_pages": max_pages,
+    }
+
+
+@app.get("/api/v1/semantic_search")
+async def semantic_search(
+    search_query: str, skip: int = 0, limit: int = 10, year: str | None = None
+) -> dict:
+    es = get_es_client(max_retries=1, sleep_time=0)
+    embedded_query = model.encode(search_query)
+
+    query = {
+        "bool": {
+            "must": [
+                {
+                    "knn": {
+                        "field": "embedding",
+                        "query_vector": embedded_query,
+                        "k": 1e4,
+                    }
+                }
+            ]
+        }
+    }
+
+    if year:
+        query["bool"]["filter"] = [
+            {
+                "range": {
+                    "date": {
+                        "gte": f"{year}-01-01",
+                        "lte": f"{year}-12-31",
+                        "format": "yyyy-MM-dd",
+                    }
+                }
+            }
+        ]
+
+    response = es.search(
+        index=INDEX_NAME_RAW,
         body={
             "query": query,
             "from": skip,
@@ -98,7 +151,7 @@ async def get_docs_per_year_count(search_query: str) -> dict:
         }
 
         response = es.search(
-            index=INDEX_NAME_N_GRAM,
+            index=INDEX_NAME_RAW,
             body={
                 "query": query,
                 "aggs": {
