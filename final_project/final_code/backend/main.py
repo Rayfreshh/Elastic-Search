@@ -1,4 +1,5 @@
 import torch
+from typing import Union
 from config import INDEX_NAME_DEFAULT, INDEX_NAME_EMBEDDING, INDEX_NAME_N_GRAM
 from elastic_transport import ObjectApiResponse
 from fastapi import FastAPI
@@ -20,14 +21,14 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = SentenceTransformer("all-MiniLM-L6-v2").to(device)
 
 
-@app.get("/api/v1/regular_search/")
+@app.get("/api/v1/regular_search", response_model=None)
 async def regular_search(
     search_query: str,
     skip: int = 0,
     limit: int = 10,
-    year: str | None = None,
+    year: Union[str, None] = None,
     tokenizer: str = "Standard",
-) -> dict | HTMLResponse:
+) -> Union[dict, HTMLResponse]:
     try:
         es = get_es_client(max_retries=1, sleep_time=0)
         query = {
@@ -84,10 +85,10 @@ async def regular_search(
         return handle_error(e)
 
 
-@app.get("/api/v1/semantic_search/")
+@app.get("/api/v1/semantic_search", response_model=None)
 async def semantic_search(
-    search_query: str, skip: int = 0, limit: int = 10, year: str | None = None
-) -> dict | HTMLResponse:
+    search_query: str, skip: int = 0, limit: int = 10, year: Union[str, None] = None
+) -> Union[dict, HTMLResponse]:
     try:
         es = get_es_client(max_retries=1, sleep_time=0)
         embedded_query = model.encode(search_query)
@@ -153,10 +154,10 @@ def calculate_max_pages(total_hits: int, limit: int) -> int:
     return (total_hits + limit - 1) // limit
 
 
-@app.get("/api/v1/get_docs_per_year_count/")
+@app.get("/api/v1/get_docs_per_year_count", response_model=None)
 async def get_docs_per_year_count(
     search_query: str, tokenizer: str = "Standard"
-) -> dict | HTMLResponse:
+) -> Union[dict, HTMLResponse]:
     try:
         es = get_es_client(max_retries=1, sleep_time=0)
         query = {
